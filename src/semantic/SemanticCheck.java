@@ -35,6 +35,10 @@ public class SemanticCheck implements Visitor, BuiltinElements {
         node.units.forEach(unit -> unit.accept(this));
     }
 
+    public void visit(ParameterListNode node) {
+        node.units.forEach(param -> param.accept(this));
+    }
+
     public void visit(TypeNode node) {
         switch (node.type.typeName) {
             case "int", "bool", "string", "void", "null", "this" -> {}
