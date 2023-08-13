@@ -24,7 +24,7 @@ public class ClassDefNode extends Node {
     public Type getVarType(String name) {
         VarDefUnitNode var = varMap.get(name);
         if (var == null) return null;
-        return var.type.type;
+        return var.typeNode.type;
     }
 
     @Override
