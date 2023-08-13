@@ -8,7 +8,6 @@ import java.util.HashMap;
 public class SemanticCheck implements Visitor, BuiltinElements {
     private GlobalScope globalScope;
     private Scope currentScope;
-    private int level = 0;
 
     public SemanticCheck(GlobalScope globalScope) {
         this.globalScope = globalScope;
@@ -104,10 +103,10 @@ public class SemanticCheck implements Visitor, BuiltinElements {
     public void visit(ForStmtNode node) {
         currentScope = new Scope(currentScope, true);
         if (node.varDefNode != null) node.varDefNode.accept(this);
-        if (node.init != null) node.accept(this);
+        if (node.init != null) node.init.accept(this);
         if (node.condition != null) {
-            node.accept(this);
-            if (!BoolType.equals(node.condition.type)) throw new MyError(node.position, "invalid condition expression");
+            node.condition.accept(this);
+            if (!BoolType.equals(node.condition.type)) throw new MyError(node.position, "Invalid condition expression");
         }
         if (node.step != null) node.step.accept(this);
         node.stmts.forEach(stmtNode -> stmtNode.accept(this));
@@ -225,8 +224,12 @@ public class SemanticCheck implements Visitor, BuiltinElements {
     // todo: two kind of Null
     public void visit(BinaryExprNode node) {
         node.lhs.accept(this);
-        node.lhs.accept(this);
-        if (node.lhs.type == null || node.rhs.type == null) throw new MyError(node.position, "Invalid expression");
+        node.rhs.accept(this);
+        if (node.lhs.type == null || node.rhs.type == null) {
+            if (node.lhs.type != null) System.out.println("lhs" + node.lhs.type.name() + node.lhs.str);
+            if (node.rhs.type != null) System.out.println("rhs" + node.rhs.type.name());
+            throw new MyError(node.position, "Invalid expression");
+        }
         if (NullType.equals(node.lhs.type) || NullType.equals(node.rhs.type)) {
             if ((node.op.equals("==") || node.op.equals("!=")) && (node.lhs.type.isReferenceType() || node.rhs.type.isReferenceType())) {
                 node.type = BoolType;

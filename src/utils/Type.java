@@ -37,4 +37,8 @@ public class Type {
     public boolean isArrayType() {
         return dim > 0;
     }
+
+    public String name() {
+        return this.typeName;
+    }
 }
