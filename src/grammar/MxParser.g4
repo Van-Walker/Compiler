@@ -42,15 +42,15 @@ expr
     | expr op=Member Identifier                                                  #memberExpr
     | expr '[' expr ']'                                                          #arrayExpr
     | expr '(' exprList? ')'                                                     #funcExpr
-    | op=(SelfAdd |SelfSub) expr                                                 #preSelfExpr
     | <assoc=right> expr op=(SelfAdd | SelfSub)                                  #unaryExpr
+    | op=(SelfAdd |SelfSub) expr                                                 #preSelfExpr
     | <assoc=right> op=(LNot | BNot | Add | Sub) expr                            #unaryExpr
     | expr op=(Mul | Div | Mod) expr                                             #binaryExpr
     | expr op=(Add | Sub) expr                                                   #binaryExpr
     | expr op=(LShift | RShift) expr                                             #binaryExpr
     | expr op=(LThan | GThan | LEqual | GEqual) expr                             #binaryExpr
     | expr op=(EEqual | NEqual) expr                                             #binaryExpr
-    | expr op=(BAnd | BOr | BXor | LAnd | LOr) expr                              #binaryExpr
+    | expr op=(BAnd | BXor | BOr | LAnd | LOr) expr                              #binaryExpr
     | <assoc=right> expr op=Assign expr                                          #assignExpr
     | <assoc=right> expr '?' expr ':' expr                                       #conditionalExpr
     | primary                                                                    #atomExpr

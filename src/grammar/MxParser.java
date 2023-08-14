@@ -1813,8 +1813,8 @@ public class MxParser extends Parser {
 		public TerminalNode EEqual() { return getToken(MxParser.EEqual, 0); }
 		public TerminalNode NEqual() { return getToken(MxParser.NEqual, 0); }
 		public TerminalNode BAnd() { return getToken(MxParser.BAnd, 0); }
-		public TerminalNode BOr() { return getToken(MxParser.BOr, 0); }
 		public TerminalNode BXor() { return getToken(MxParser.BXor, 0); }
+		public TerminalNode BOr() { return getToken(MxParser.BOr, 0); }
 		public TerminalNode LAnd() { return getToken(MxParser.LAnd, 0); }
 		public TerminalNode LOr() { return getToken(MxParser.LOr, 0); }
 		public BinaryExprContext(ExprContext ctx) { copyFrom(ctx); }
@@ -1995,7 +1995,7 @@ public class MxParser extends Parser {
 					consume();
 				}
 				setState(222);
-				expr(12);
+				expr(11);
 				}
 				break;
 			case Add:
@@ -2258,7 +2258,7 @@ public class MxParser extends Parser {
 						_localctx = new UnaryExprContext(new ExprContext(_parentctx, _parentState));
 						pushNewRecursionContext(_localctx, _startState, RULE_expr);
 						setState(269);
-						if (!(precpred(_ctx, 11))) throw new FailedPredicateException(this, "precpred(_ctx, 11)");
+						if (!(precpred(_ctx, 12))) throw new FailedPredicateException(this, "precpred(_ctx, 12)");
 						setState(270);
 						((UnaryExprContext)_localctx).op = _input.LT(1);
 						_la = _input.LA(1);
@@ -2511,7 +2511,7 @@ public class MxParser extends Parser {
 		case 10:
 			return precpred(_ctx, 13);
 		case 11:
-			return precpred(_ctx, 11);
+			return precpred(_ctx, 12);
 		}
 		return true;
 	}
@@ -2662,7 +2662,7 @@ public class MxParser extends Parser {
 		"\u0000\u0000\u0000\u00d8\u00d6\u0001\u0000\u0000\u0000\u00d9\u00da\u0005"+
 		".\u0000\u0000\u00da\u00dc\u0005/\u0000\u0000\u00db\u00d9\u0001\u0000\u0000"+
 		"\u0000\u00db\u00dc\u0001\u0000\u0000\u0000\u00dc\u00e3\u0001\u0000\u0000"+
-		"\u0000\u00dd\u00de\u0007\u0001\u0000\u0000\u00de\u00e3\u0003*\u0015\f"+
+		"\u0000\u00dd\u00de\u0007\u0001\u0000\u0000\u00de\u00e3\u0003*\u0015\u000b"+
 		"\u00df\u00e0\u0007\u0002\u0000\u0000\u00e0\u00e3\u0003*\u0015\n\u00e1"+
 		"\u00e3\u0003.\u0017\u0000\u00e2\u00cc\u0001\u0000\u0000\u0000\u00e2\u00d1"+
 		"\u0001\u0000\u0000\u0000\u00e2\u00dd\u0001\u0000\u0000\u0000\u00e2\u00df"+
@@ -2686,7 +2686,7 @@ public class MxParser extends Parser {
 		"\n\r\u0000\u0000\u0108\u010a\u0005.\u0000\u0000\u0109\u010b\u00030\u0018"+
 		"\u0000\u010a\u0109\u0001\u0000\u0000\u0000\u010a\u010b\u0001\u0000\u0000"+
 		"\u0000\u010b\u010c\u0001\u0000\u0000\u0000\u010c\u0110\u0005/\u0000\u0000"+
-		"\u010d\u010e\n\u000b\u0000\u0000\u010e\u0110\u0007\u0001\u0000\u0000\u010f"+
+		"\u010d\u010e\n\f\u0000\u0000\u010e\u0110\u0007\u0001\u0000\u0000\u010f"+
 		"\u00e4\u0001\u0000\u0000\u0000\u010f\u00e7\u0001\u0000\u0000\u0000\u010f"+
 		"\u00ea\u0001\u0000\u0000\u0000\u010f\u00ed\u0001\u0000\u0000\u0000\u010f"+
 		"\u00f0\u0001\u0000\u0000\u0000\u010f\u00f3\u0001\u0000\u0000\u0000\u010f"+

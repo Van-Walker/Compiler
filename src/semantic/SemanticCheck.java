@@ -228,8 +228,8 @@ public class SemanticCheck implements Visitor, BuiltinElements {
         node.lhs.accept(this);
         node.rhs.accept(this);
         if (node.lhs.type == null || node.rhs.type == null) {
-            if (node.lhs.type != null) System.out.println("lhs" + node.lhs.type.name() + node.lhs.str);
-            if (node.rhs.type != null) System.out.println("rhs" + node.rhs.type.name());
+//            if (node.lhs.type != null) System.out.println("lhs" + node.lhs.type.name() + node.lhs.str);
+//            if (node.rhs.type != null) System.out.println("rhs" + node.rhs.type.name());
             throw new MyError(node.position, "Invalid expression");
         }
         if (NullType.equals(node.lhs.type) || NullType.equals(node.rhs.type)) {
