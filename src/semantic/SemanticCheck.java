@@ -185,6 +185,8 @@ public class SemanticCheck implements Visitor, BuiltinElements {
         node.type = currentScope.getVarType(node.str);
         if (currentScope.inWhichClass != null && currentScope.inWhichClass.getFuncDef(node.str) != null) {
             node.funcDef = currentScope.inWhichClass.getFuncDef(node.str);
+        } else {
+            node.funcDef = globalScope.getFuncDef(node.str);
         }
     }
 

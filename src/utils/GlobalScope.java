@@ -8,6 +8,7 @@ public class GlobalScope extends Scope implements BuiltinElements {
     public HashMap <String, ClassDefNode> classMap = new HashMap<>();
 
     public GlobalScope() {
+        // System.out.println("Global init success!");
         funcMap.put("print", PrintFunc);
         funcMap.put("println", PrintlnFunc);
         funcMap.put("printInt", PrintIntFunc);

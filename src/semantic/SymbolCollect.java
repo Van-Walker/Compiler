@@ -17,6 +17,7 @@ public class SymbolCollect implements Visitor {
     public void visit(FuncDefNode node) {
         if (globalScope.getFuncDef(node.funcName) != null) throw new MyError(node.position, "Function " + node.funcName + " is repeatedly defined");
         if (globalScope.getClassDef(node.funcName) != null) throw new MyError(node.position, "Function " + node.funcName + " is previously defined as a class");
+        //System.out.println("FuncDef success: " + node.funcName);
         globalScope.addFunc(node.funcName, node);
     }
 
