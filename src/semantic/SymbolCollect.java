@@ -27,6 +27,7 @@ public class SymbolCollect implements Visitor {
         globalScope.addClass(node.name, node);
         for (var func : node.funcDefList) {
             if (node.funcMap.containsKey(func.funcName)) throw new MyError(node.position, "Function " + func.funcName + " is repeatedly defined");
+            func.className = node.name;
             node.funcMap.put(func.funcName, func);
         }
         for (var variable : node.varDefList) {

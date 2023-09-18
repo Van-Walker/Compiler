@@ -58,11 +58,9 @@ public class SemanticCheck implements Visitor, BuiltinElements {
         currentScope = currentScope.parentScope;
     }
 
-    // todo: add var and func to currentScope or SemanticCheck
     public void visit(ClassDefNode node) {
         currentScope = new Scope(currentScope, node);
         node.varDefList.forEach(varDef -> varDef.accept(this));
-        // todo
         if (node.classBuild != null) {
             if (node.name.equals(node.classBuild.name)) {
                 node.classBuild.accept(this);
@@ -121,7 +119,6 @@ public class SemanticCheck implements Visitor, BuiltinElements {
         currentScope = currentScope.parentScope;
     }
 
-    // todo: inLoop initialize
     public void visit(ContinueStmtNode node) {
         if (!currentScope.inLoop) throw new MyError(node.position, "CONTINUE not in a loop");
     }
@@ -180,7 +177,6 @@ public class SemanticCheck implements Visitor, BuiltinElements {
         } else node.type = IntType;
     }
 
-    // todo: VarExpr?
     public void visit(VarExprNode node) {
         node.type = currentScope.getVarType(node.str);
         if (currentScope.inWhichClass != null && currentScope.inWhichClass.getFuncDef(node.str) != null) {
@@ -273,8 +269,7 @@ public class SemanticCheck implements Visitor, BuiltinElements {
         node.array.accept(this);
         node.index.accept(this);
         if (node.array.type == null || node.index.type == null || !node.index.type.equals(IntType)) throw new MyError(node.position, "Invalid expression");
-        node.type = new Type(node.array.type);
-        --node.type.dim;
+        node.type = new Type(node.array.type.typeName, node.array.type.dim - 1);
         if (node.type.dim < 0) throw new MyError(node.position, "Array: negative dimension");
     }
 

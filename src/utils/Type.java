@@ -1,5 +1,7 @@
 package utils;
 
+import ir.*;
+
 public class Type {
     public String typeName;
     public int dim = 0;
@@ -41,4 +43,5 @@ public class Type {
     public String name() {
         return this.typeName;
     }
+
 }

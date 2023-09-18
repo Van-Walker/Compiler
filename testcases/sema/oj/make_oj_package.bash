@@ -40,7 +40,7 @@ print_detail() {
     echo "        {" >> $DIR/config.json
     echo "            \"ID\": $1," >> $DIR/config.json
     echo "            \"Dependency\": 0," >> $DIR/config.json
-    echo "            \"TimeLimit\": 1000," >> $DIR/config.json
+    echo "            \"TimeLimit\": 4000," >> $DIR/config.json
     echo "            \"MemoryLimit\": 536870912," >> $DIR/config.json
     echo "            \"DiskLimit\": -536870912," >> $DIR/config.json
     echo "            \"FileNumberLimit\": 10," >> $DIR/config.json
