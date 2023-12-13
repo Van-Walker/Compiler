@@ -24,8 +24,8 @@ public class IRFunction {
 
     public void finish() {
         IRBlock entry = blocks.getFirst();
-        for (AllocaInstruction instruction : allocaInstructions) {
-            entry.instructionList.addFirst(instruction);
+        for (int i = allocaInstructions.size() - 1; i >= 0; --i) {
+            entry.instructionList.addFirst(allocaInstructions.get(i));
         }
         blocks.add(exit);
     }

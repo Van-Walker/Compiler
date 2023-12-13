@@ -13,10 +13,10 @@ import org.antlr.v4.runtime.tree.*;
 
 public class Compiler {
     public static void main(String[] args) throws Exception {
-        //CharStream input = CharStreams.fromStream(System.in);
-        CharStream input = CharStreams.fromStream(new FileInputStream("input.mx"));
-        PrintStream output = new PrintStream("output.ll");
-        System.setOut(output);
+        // CharStream input = CharStreams.fromStream(System.in);
+         CharStream input = CharStreams.fromStream(new FileInputStream("input.mx"));
+         PrintStream output = new PrintStream("output.ll");
+         System.setOut(output);
         MxLexer lexer = new MxLexer(input);
         lexer.removeErrorListeners();
         lexer.addErrorListener(new MxErrorListener());

@@ -1,6 +1,6 @@
 package ir;
 
-public class IntConst extends IRBase {
+public class IntConst extends IRConst {
     public int val;
 
     public IntConst(int val) {

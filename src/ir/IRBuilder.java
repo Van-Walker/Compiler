@@ -10,6 +10,8 @@ public class IRBuilder implements BuiltinElements, Visitor {
     public IRProgram irProgram;
     public GlobalScope globalScope;
     public Scope currentScope;
+    int idx = -1; // for parameters
+
     public IRBlock currentBlock = null;
     public IRFunction currentFunc = null;
     public StructType currentClass = null;
@@ -29,24 +31,22 @@ public class IRBuilder implements BuiltinElements, Visitor {
             }
         }
         node.defList.forEach(def -> {
-            if (def instanceof FuncDefNode) def.accept(this);
-        });
-        node.defList.forEach(def -> {
             if (def instanceof ClassDefNode) def.accept(this);
         });
         node.defList.forEach(def -> {
             if (def instanceof VarDefNode) def.accept(this);
         });
+        node.defList.forEach(def -> {
+            if (def instanceof FuncDefNode) def.accept(this);
+        });
         if (irProgram.initBlock.instructionList.isEmpty()) {
             irProgram.initFunc = null;
-            irProgram.mainFunc.finish();
             return;
         }
         irProgram.initFunc.finish();
         irProgram.functions.addFirst(irProgram.initFunc);
         IRBlock mainEntry = irProgram.mainFunc.blocks.get(0);
         mainEntry.instructionList.addFirst(new CallInstruction(mainEntry, irVoidType, "__program_var_init"));
-        irProgram.mainFunc.finish();
     }
 
     @Override
@@ -56,7 +56,7 @@ public class IRBuilder implements BuiltinElements, Visitor {
         String funcName = currentClass != null ? currentClass.name + "." + node.funcName : node.funcName;
         currentFunc = new IRFunction(funcName, node.returnType.irType);
         irProgram.functions.add(currentFunc);
-        currentBlock = currentFunc.appendBlock(new IRBlock(currentFunc, "entry"));
+        currentBlock = currentFunc.appendBlock(new IRBlock(currentFunc, "entry_"));
         currentScope = new Scope(currentScope, node.returnType.type);
         // todo
         if (currentClass != null) {
@@ -69,7 +69,7 @@ public class IRBuilder implements BuiltinElements, Visitor {
             currentScope.addIRVar("this", thisAddr);
         }
         if (node.parameterListNode != null) node.parameterListNode.accept(this);
-        currentFunc.exit = new IRBlock(currentFunc, "return");
+        currentFunc.exit = new IRBlock(currentFunc, "return_");
         currentBlock.terminal = new JumpInstruction(currentBlock, currentFunc.exit);
         if (node.returnType.type.equals(VoidType)) {
             currentFunc.exit.terminal = new RetInstruction(currentFunc.exit, voidConst);
@@ -118,11 +118,11 @@ public class IRBuilder implements BuiltinElements, Visitor {
         if (currentFunc != null) {
             IRRegister definingPtr = new IRRegister(node.varName + ".addr", new IRPointerType(node.typeNode.irType));
             currentScope.addIRVar(node.varName, definingPtr);
-            currentBlock.add(new AllocaInstruction(currentBlock, node.typeNode.irType, definingPtr));
+            currentBlock.add(new AllocaInstruction(currentBlock, node.typeNode.irType, definingPtr, idx == -1 ? -1 : idx + (currentClass == null ? 0 : 1)));
             if (node.init != null) {
                 node.init.accept(this);
                 addStore(definingPtr, node.init);
-            } else if (node.typeNode.type.isReferenceType())
+            } else if (node.typeNode.type.isReferenceType() && idx == -1)
                 currentBlock.add(new StoreInstruction(currentBlock, new NullConst(node.typeNode.irType), definingPtr));
         } else if (currentClass != null) {
             currentClass.addMember(node.varName, node.typeNode.irType);
@@ -154,13 +154,14 @@ public class IRBuilder implements BuiltinElements, Visitor {
 
     @Override
     public void visit(ParameterListNode node) {
-        node.units.forEach(unit -> {
+        for (idx = 0; idx < node.units.size(); idx++) {
+            var unit = node.units.get(idx);
             unit.accept(this);
             IRRegister input = new IRRegister("", unit.typeNode.irType);
             currentFunc.params.add(input);
-            currentBlock.add(new StoreInstruction(currentBlock, input, currentScope.getIRVarPtr(unit.varName)));
-            // todo
-        });
+            currentBlock.add(new StoreInstruction(currentBlock, input, currentScope.getIRVarPtr(unit.varName), idx + (currentClass == null ? 0 : 1)));
+        }
+        idx = -1;
     }
 
     @Override
@@ -199,7 +200,7 @@ public class IRBuilder implements BuiltinElements, Visitor {
             currentBlock.isFinished = true;
             currentBlock = currentFunc.appendBlock(elseBlock);
             node.elseStmts.forEach(stmt -> stmt.accept(this));
-            currentScope= currentScope.parentScope;
+            currentScope = currentScope.parentScope;
             lastBlock.terminal = new BrInstruction(lastBlock, cond, thenBlock, elseBlock);
         } else {
             lastBlock.terminal = new BrInstruction(lastBlock, cond, thenBlock, nextBlock);
@@ -240,6 +241,7 @@ public class IRBuilder implements BuiltinElements, Visitor {
         currentBlock.terminal = new JumpInstruction(currentBlock, node.condBlock);
         currentBlock.isFinished = true;
         currentBlock = currentFunc.appendBlock(node.nextBlock);
+        currentScope = currentScope.parentScope; // ?
         // todo
     }
 
@@ -266,7 +268,7 @@ public class IRBuilder implements BuiltinElements, Visitor {
     @Override
     public void visit(ContinueStmtNode node) {
         if (currentScope.inWhichLoop instanceof ForStmtNode) currentBlock.terminal = new JumpInstruction(currentBlock, ((ForStmtNode) currentScope.inWhichLoop).stepBlock);
-        else currentBlock.terminal = new JumpInstruction(currentBlock, ((WhileStmtNode) currentScope.inWhichLoop).condBlock);
+        else currentBlock.terminal = new JumpInstruction(currentBlock, currentScope.inWhichLoop.condBlock);
         currentBlock.isFinished = true;
     }
 
@@ -300,10 +302,7 @@ public class IRBuilder implements BuiltinElements, Visitor {
         } else if (node.type.equals(NullType)) {
             node.value = new NullConst();
         } else if (node.type.equals(StringType)) {
-            // todo
-            StringConst str = irProgram.addString(node.str.substring(1, node.str.length() - 1));
-            node.value = new IRRegister("", new IRPointerType(irCharType));
-            currentBlock.add(new GetElementPtrInstruction(currentBlock, str, (IRRegister) node.value, intConstZero, intConstZero));
+            node.value = irProgram.addString(node.str.substring(1, node.str.length() - 1));
         } else {
             node.store = currentScope.getIRVarPtr("this");
         }
@@ -318,9 +317,8 @@ public class IRBuilder implements BuiltinElements, Visitor {
                 IRType objPtr = ((IRPointerType) thisAddr.irType).toType();
                 IRType objType = ((IRPointerType) objPtr).toType();
                 IRRegister thisVal = new IRRegister("this", objPtr);
-                currentBlock.add(new LoadInstruction(currentBlock, thisVal, thisAddr));
                 if (((StructType) objType).findMember(node.str)) {
-                    // todo
+                    currentBlock.add(new LoadInstruction(currentBlock, thisVal, thisAddr));
                     node.store = new IRRegister("this." + node.str, new IRPointerType(((StructType) objType).getMemberType(node.str)));
                     currentBlock.add(new GetElementPtrInstruction(currentBlock, thisVal, node.store, intConstZero, new IntConst(((StructType) objType).memberMap.get(node.str))));
                 }
@@ -347,33 +345,29 @@ public class IRBuilder implements BuiltinElements, Visitor {
                 op = "add";
                 node.value = getVal(node.expr);
                 dest = new IRRegister("", irIntType);
-                currentBlock.add(new BinaryInstruction(currentBlock, irIntType, dest, node.value, intConstOne, op));
+                currentBlock.add(new BinaryInstruction(currentBlock, dest, node.value, intConstOne, op));
                 currentBlock.add(new StoreInstruction(currentBlock, dest, node.expr.store));
-            }
-            case "--" -> {
+            } case "--" -> {
                 op = "sub";
                 node.value = getVal(node.expr);
                 dest = new IRRegister("", irIntType);
-                currentBlock.add(new BinaryInstruction(currentBlock, irIntType, dest, node.value, intConstOne, op));
+                currentBlock.add(new BinaryInstruction(currentBlock, dest, node.value, intConstOne, op));
                 currentBlock.add(new StoreInstruction(currentBlock, dest, node.expr.store));
-            }
-            case "+" -> node.value = getVal(node.expr);
-            case "-" -> {
+            } case "-" -> { // "+" need no change
                 op = "sub";
                 dest = new IRRegister("", irIntType);
-                currentBlock.add(new BinaryInstruction(currentBlock, irIntType, dest, intConstZero, getVal(node.expr), op));
+                currentBlock.add(new BinaryInstruction(currentBlock, dest, intConstZero, getVal(node.expr), op));
                 node.value = dest;
-            }
-            case "~" -> {
+            } case "~" -> {
                 op = "xor";
                 dest = new IRRegister("", irIntType);
-                currentBlock.add(new BinaryInstruction(currentBlock, irIntType, dest, getVal(node.expr), intConstNegativeOne, op));
+                currentBlock.add(new BinaryInstruction(currentBlock, dest, getVal(node.expr), intConstNegativeOne, op));
                 node.value = dest;
-            }
-            case "!" -> {
+            } case "!" -> {
+                assert node.expr.type.equals(BoolType);
                 op = "xor";
                 dest = new IRRegister("", irBoolType);
-                currentBlock.add(new BinaryInstruction(currentBlock, irBoolType, dest, getVal(node.expr), trueConst, op));
+                currentBlock.add(new BinaryInstruction(currentBlock, dest, getVal(node.expr), trueConst, op));
                 node.value = dest;
             }
         }
@@ -387,7 +381,7 @@ public class IRBuilder implements BuiltinElements, Visitor {
         if (node.op.equals("++")) op = "add";
         else op = "sub";
         dest = new IRRegister("", irIntType);
-        currentBlock.add(new BinaryInstruction(currentBlock, irIntType, dest, getVal(node.expr), intConstOne, op));
+        currentBlock.add(new BinaryInstruction(currentBlock, dest, getVal(node.expr), intConstOne, op));
         currentBlock.add(new StoreInstruction(currentBlock, dest, node.expr.store));
         node.value = dest;
         node.store = node.expr.store;
@@ -446,8 +440,8 @@ public class IRBuilder implements BuiltinElements, Visitor {
             currentBlock.terminal = new JumpInstruction(currentBlock, nextBlock);
             currentBlock.isFinished = true;
             currentBlock = currentFunc.appendBlock(nextBlock);
-            IRRegister loadTmp = new IRRegister(".loadTmp", irBoolType);
-            currentBlock.add(new LoadInstruction(currentBlock, loadTmp, tmp));
+//            IRRegister loadTmp = new IRRegister(".loadTmp", irBoolType);
+//            currentBlock.add(new LoadInstruction(currentBlock, loadTmp, tmp));
             node.value = new IRRegister("", irBoolType);
             currentBlock.add(new LoadInstruction(currentBlock, (IRRegister) node.value, tmp));
             return;
@@ -461,7 +455,6 @@ public class IRBuilder implements BuiltinElements, Visitor {
                 case "+" -> {
                     node.value = new IRRegister("", irStringType);
                     currentBlock.add(new CallInstruction(currentBlock, (IRRegister) node.value, irStringType, "__string_add", getVal(node.lhs), getVal(node.rhs)));
-                    // todo
                 }
                 case "<" -> node.value = stringCmp("__string_less", getVal(node.lhs), getVal(node.rhs));
                 case ">" -> node.value = stringCmp("__string_greater", getVal(node.lhs), getVal(node.rhs));
@@ -474,46 +467,85 @@ public class IRBuilder implements BuiltinElements, Visitor {
             // todo
             IRBase lhsVal = getVal(node.lhs), rhsVal = getVal(node.rhs);
             switch (node.op) {
-                case "+" -> op = "add";
-                case "-" -> op = "sub";
-                case "*" -> op = "mul";
-                case "/" -> op = "sdiv";
-                case "%" -> op = "srem";
-                case "<<" -> op = "shl";
-                case ">>" -> op = "ashr";
-                case "&" -> op = "and";
-                case "|" -> op = "or";
-                case "^" -> op = "xor";
-                case "<" -> op = "slt";
-                case "<=" -> op = "sle";
-                case ">" -> op = "sgt";
-                case ">=" -> op = "sge";
-                case "==" -> op = "eq";
-                case "!=" -> op = "ne";
+                case "+" -> {
+                    if (lhsVal instanceof IRConst && rhsVal instanceof IRConst)
+                        node.value = new IntConst(((IntConst) lhsVal).val + ((IntConst) rhsVal).val);
+                    op = "add";
+                } case "-" -> {
+                    if (lhsVal instanceof IRConst && rhsVal instanceof IRConst)
+                        node.value = new IntConst(((IntConst) lhsVal).val - ((IntConst) rhsVal).val);
+                    op = "sub";
+                } case "*" -> {
+                    if (lhsVal instanceof IRConst && rhsVal instanceof IRConst)
+                        node.value = new IntConst(((IntConst) lhsVal).val * ((IntConst) rhsVal).val);
+                    op = "mul";
+                } case "/" -> {
+                    if (lhsVal instanceof IRConst && rhsVal instanceof IRConst && ((IntConst) rhsVal).val != 0)
+                        node.value = new IntConst(((IntConst) lhsVal).val / ((IntConst) rhsVal).val);
+                    op = "sdiv";
+                } case "%" -> {
+                    if (lhsVal instanceof IRConst && rhsVal instanceof IRConst)
+                        node.value = new IntConst(((IntConst) lhsVal).val % ((IntConst) rhsVal).val);
+                    op = "srem";
+                } case "<<" -> {
+                    if (lhsVal instanceof IRConst && rhsVal instanceof IRConst)
+                        node.value = new IntConst(((IntConst) lhsVal).val << ((IntConst) rhsVal).val);
+                    op = "shl";
+                } case ">>" -> {
+                    if (lhsVal instanceof IRConst && rhsVal instanceof IRConst)
+                        node.value = new IntConst(((IntConst) lhsVal).val >> ((IntConst) rhsVal).val);
+                    op = "ashr";
+                } case "&" -> {
+                    if (lhsVal instanceof IRConst && rhsVal instanceof IRConst)
+                        node.value = new IntConst(((IntConst) lhsVal).val & ((IntConst) rhsVal).val);
+                    op = "and";
+                } case "|" -> {
+                    if (lhsVal instanceof IRConst && rhsVal instanceof IRConst)
+                        node.value = new IntConst(((IntConst) lhsVal).val | ((IntConst) rhsVal).val);
+                    op = "or";
+                } case "^" -> {
+                    if (lhsVal instanceof IRConst && rhsVal instanceof IRConst)
+                        node.value = new IntConst(((IntConst) lhsVal).val ^ ((IntConst) rhsVal).val);
+                    op = "xor";
+                } case "<" -> {
+                    if (lhsVal instanceof IRConst && rhsVal instanceof IRConst)
+                        node.value = new BoolConst(((IntConst) lhsVal).val < ((IntConst) rhsVal).val);
+                    op = "slt";
+                } case "<=" -> {
+                    if (lhsVal instanceof IRConst && rhsVal instanceof IRConst)
+                        node.value = new BoolConst(((IntConst) lhsVal).val <= ((IntConst) rhsVal).val);
+                    op = "sle";
+                } case ">" -> {
+                    if (lhsVal instanceof IRConst && rhsVal instanceof IRConst)
+                        node.value = new BoolConst(((IntConst) lhsVal).val > ((IntConst) rhsVal).val);
+                    op = "sgt";
+                } case ">=" -> {
+                    if (lhsVal instanceof IRConst && rhsVal instanceof IRConst)
+                        node.value = new BoolConst(((IntConst) lhsVal).val >= ((IntConst) rhsVal).val);
+                    op = "sge";
+                } case "==" -> {
+                    if (lhsVal instanceof IntConst && rhsVal instanceof IntConst)
+                        node.value = new BoolConst(((IntConst) lhsVal).val == ((IntConst) rhsVal).val);
+                    op = "eq";
+                } case "!=" -> {
+                    if (lhsVal instanceof IntConst && rhsVal instanceof IntConst)
+                        node.value = new BoolConst(((IntConst) lhsVal).val != ((IntConst) rhsVal).val);
+                    op = "ne";
+                }
             }
+            if (node.value != null) return;
             switch (node.op) {
                 case "+", "-", "*", "/", "%", "<<", ">>", "&", "|", "^" -> {
-                    opType = irIntType;
                     dest = new IRRegister("", irIntType);
-                    currentBlock.add(new BinaryInstruction(currentBlock, opType, dest, lhsVal, rhsVal, op));
-                }
-                case "<", "<=", ">", ">=" -> {
+                    currentBlock.add(new BinaryInstruction(currentBlock, dest, lhsVal, rhsVal, op));
+                } case "<", "<=", ">", ">=" -> {
                     opType = irIntType;
                     dest = new IRRegister("", irBoolType);
                     currentBlock.add(new IcmpInstruction(currentBlock, opType, dest, lhsVal, rhsVal, op));
-                }
-                case "==", "!=" -> {
-                    if (lhsVal instanceof IntConst && rhsVal instanceof IntConst) {
-                        if (op.equals("eq")) {
-                            node.value = new BoolConst(((IntConst) lhsVal).val == ((IntConst) rhsVal).val);
-                        } else { // op == "ne"
-                            node.value = new BoolConst(((IntConst) lhsVal).val != ((IntConst) rhsVal).val);
-                        }
-                    } else {
-                        opType = node.lhs.type.equals(NullType) ? node.rhs.value.irType : node.lhs.value.irType;
-                        dest = new IRRegister("tmp", irBoolType);
-                        currentBlock.add(new IcmpInstruction(currentBlock, opType, dest, lhsVal, rhsVal, op));
-                    }
+                } case "==", "!=" -> {
+                    opType = node.lhs.type.equals(NullType) ? node.rhs.getIRType() : node.lhs.getIRType();
+                    dest = new IRRegister("tmp", irBoolType);
+                    currentBlock.add(new IcmpInstruction(currentBlock, opType, dest, lhsVal, rhsVal, op));
                 }
             }
             node.value = dest;
@@ -582,7 +614,10 @@ public class IRBuilder implements BuiltinElements, Visitor {
             else if (funcDef == StringParseIntFunc) call.funcName = "__string_parseInt";
             else if (funcDef == StringOrdFunc) call.funcName = "__string_ord";
             if (funcDef.className != null) {
+                //System.out.println(funcDef.className + call.funcName);
+
                 if (node.funcName instanceof MemberExprNode) {
+
                     call.args.add(((MemberExprNode) node.funcName).objAddress);
                 } else {
                     IRRegister thisPtr = currentScope.getIRVarPtr("this");
@@ -590,6 +625,8 @@ public class IRBuilder implements BuiltinElements, Visitor {
                     currentBlock.add(new LoadInstruction(currentBlock, thisVal, thisPtr));
                     call.args.add(thisVal);
                 }
+            } else {
+                //System.out.println("empty." + call.funcName);
             }
             // todo
             if (node.args != null) {
@@ -600,7 +637,10 @@ public class IRBuilder implements BuiltinElements, Visitor {
                 call.reg = new IRRegister("", funcDef.returnType.irType);
             currentBlock.add(call);
             node.value = call.reg;
+            // System.out.println(call.funcName + call.args);
         }
+
+
     }
 
     @Override
@@ -624,6 +664,7 @@ public class IRBuilder implements BuiltinElements, Visitor {
 
     public IRBase getVal(ExprNode node) {
         if (node.value != null) return node.value;
+        assert node.store != null;
         IRRegister val = new IRRegister("", ((IRPointerType) node.store.irType).toType());
         currentBlock.add(new LoadInstruction(currentBlock, val, node.store));
         return node.value = val;
@@ -649,23 +690,24 @@ public class IRBuilder implements BuiltinElements, Visitor {
 
     public IRBase newArray(IRType type, int at, ArrayList<ExprNode> sizeList) {
         sizeList.get(at).accept(this);
-        IRBase size, cnt = getVal(sizeList.get(at));
+        IRBase size;
+        IRBase cnt = getVal(sizeList.get(at));
         int sizeOfType = ((IRPointerType) type).toType().size;
         if (cnt instanceof IntConst) {
             size = new IntConst(((IntConst) cnt).val * sizeOfType + 4);
         } else {
             IntConst typeSize = new IntConst(sizeOfType);
             IRRegister tmpSize = new IRRegister("", irIntType);
-            currentBlock.add(new BinaryInstruction(currentBlock, irIntType, tmpSize, cnt, typeSize, "mul"));
+            currentBlock.add(new BinaryInstruction(currentBlock, tmpSize, cnt, typeSize, "mul"));
             size = new IRRegister("", irIntType);
-            currentBlock.add(new BinaryInstruction(currentBlock, irIntType, (IRRegister) size, tmpSize, intConstFour, "add"));
+            currentBlock.add(new BinaryInstruction(currentBlock, (IRRegister) size, tmpSize, intConstFour, "add"));
         }
         IRRegister ptr = new IRRegister("",type);
         currentBlock.add(new CallInstruction(currentBlock, ptr, new IRPointerType(type), "__newPtrArray", size, cnt));
         if (at + 1 < sizeList.size()) {
-            IRRegister idx = new IRRegister("", irIntPtrType);
-            currentBlock.add(new AllocaInstruction(currentBlock, irIntType, idx));
-            currentBlock.add(new StoreInstruction(currentBlock, intConstZero, idx));
+            IRRegister _idx = new IRRegister("", irIntPtrType);
+            currentBlock.add(new AllocaInstruction(currentBlock, irIntType, _idx));
+            currentBlock.add(new StoreInstruction(currentBlock, intConstZero, _idx));
             IRBlock condBlock = new IRBlock(currentFunc, "for.cond_");
             IRBlock loopBlock = new IRBlock(currentFunc, "for.loop_");
             IRBlock stepBlock = new IRBlock(currentFunc, "for.step_");
@@ -676,7 +718,7 @@ public class IRBuilder implements BuiltinElements, Visitor {
             currentBlock = currentFunc.appendBlock(condBlock);
             IRRegister cond = new IRRegister("", irBoolType);
             IRRegister iVal = new IRRegister("", irIntType);
-            currentBlock.add(new LoadInstruction(currentBlock, iVal, idx));
+            currentBlock.add(new LoadInstruction(currentBlock, iVal, _idx));
             currentBlock.add(new IcmpInstruction(currentBlock, irIntType, cond, iVal, cnt, "slt"));
             currentBlock.terminal = new BrInstruction(currentBlock, cond, loopBlock, nextBlock);
             currentBlock.isFinished = true;
@@ -684,16 +726,16 @@ public class IRBuilder implements BuiltinElements, Visitor {
             IRBase iPtrVal = newArray(((IRPointerType) type).toType(), at + 1, sizeList);
             IRRegister iPtr = new IRRegister("", type);
             IRRegister iVal2 = new IRRegister("", irIntType);
-            currentBlock.add(new LoadInstruction(nextBlock, iVal2, idx));
+            currentBlock.add(new LoadInstruction(nextBlock, iVal2, _idx));
             currentBlock.add(new GetElementPtrInstruction(currentBlock, ptr, iPtr, iVal2));
             currentBlock.add(new StoreInstruction(currentBlock, iPtrVal, iPtr));
             currentBlock.terminal = new JumpInstruction(currentBlock, stepBlock);
             currentBlock.isFinished = true;
             currentBlock = currentFunc.appendBlock(stepBlock);
             IRRegister iVal3 = new IRRegister("", irIntType), iRes = new IRRegister("", irIntType);
-            currentBlock.add(new LoadInstruction(nextBlock, iVal3, idx));
-            currentBlock.add(new BinaryInstruction(currentBlock, irIntType, iRes, iVal2, intConstOne, "add"));
-            currentBlock.add(new StoreInstruction(currentBlock, iRes, idx));
+            currentBlock.add(new LoadInstruction(nextBlock, iVal3, _idx));
+            currentBlock.add(new BinaryInstruction(currentBlock, iRes, iVal3, intConstOne, "add"));
+            currentBlock.add(new StoreInstruction(currentBlock, iRes, _idx));
             currentBlock.terminal = new JumpInstruction(currentBlock, condBlock);
             currentBlock.isFinished = true;
             currentBlock = currentFunc.appendBlock(nextBlock);

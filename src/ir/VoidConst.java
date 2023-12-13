@@ -1,6 +1,6 @@
 package ir;
 
-public class VoidConst extends IRBase {
+public class VoidConst extends IRConst {
     public VoidConst() {
         super(irVoidType);
     }

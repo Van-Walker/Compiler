@@ -8,7 +8,7 @@ public class ForStmtNode extends LoopStmtNode {
     public VarDefNode varDefNode;
     public ExprNode init, condition, step;
     public ArrayList <StmtNode> stmts = new ArrayList<>();
-    public IRBlock condBlock, stepBlock, loopBlock, nextBlock;
+    public IRBlock stepBlock;
 
     public ForStmtNode(Position position) {
         super(position);

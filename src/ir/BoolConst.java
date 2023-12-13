@@ -1,6 +1,6 @@
 package ir;
 
-public class BoolConst extends IRBase {
+public class BoolConst extends IRConst {
     public boolean val;
 
     public BoolConst(boolean val) {

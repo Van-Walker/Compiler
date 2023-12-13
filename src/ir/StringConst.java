@@ -1,6 +1,6 @@
 package ir;
 
-public class StringConst extends IRBase {
+public class StringConst extends IRConst {
     public String val;
     public int id;
     public static int stringCnt = 0;

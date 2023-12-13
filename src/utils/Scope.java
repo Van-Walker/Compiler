@@ -15,8 +15,6 @@ public class Scope {
     public boolean returned = false;
     public HashMap <String, Type> varMap = new HashMap<>();
     public HashMap <String, IRRegister> IRVarMap = new HashMap<>();
-    public HashMap <String, IRFunction> IRFuncMap = new HashMap<>();
-
 
     public Scope() {}
 

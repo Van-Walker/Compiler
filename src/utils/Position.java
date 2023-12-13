@@ -7,6 +7,8 @@ import org.antlr.v4.runtime.Token;
 public class Position {
     private int row, col;
 
+    public Position() {}
+
     public Position(int row, int col) {
         this.row = row;
         this.col = col;

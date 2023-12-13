@@ -1,6 +1,6 @@
 package ir;
 
-public class NullConst extends IRBase {
+public class NullConst extends IRConst {
     public NullConst() {
         super(irNullType);
     }

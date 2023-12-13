@@ -15,4 +15,6 @@ public abstract class ExprNode extends Node {
     }
 
     public abstract boolean isLeftValue();
+
+    public IRType getIRType() { return value.irType; }
 }

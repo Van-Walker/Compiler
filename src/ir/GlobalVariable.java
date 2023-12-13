@@ -6,7 +6,7 @@ public class GlobalVariable extends IRRegister {
     // todo
     public GlobalVariable(String name, IRType irType) {
         super(name, new IRPointerType(irType));
-        --registerCnt;
+        //--registerCnt;
     }
 
     @Override

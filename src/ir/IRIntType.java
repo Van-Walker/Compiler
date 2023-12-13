@@ -12,7 +12,7 @@ public class IRIntType extends IRType {
 
     @Override
     public String toString() {
-        return "i" + String.valueOf(size);
+        return "i" + String.valueOf(length);
     }
 
     @Override
